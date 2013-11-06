@@ -6,7 +6,6 @@ properties {
   $version = '1.0.0.0'
   $nuget_packages_uri = "https://nuget.org"
   $Build_Configuration = 'Release'
-  
   ##
   $SourceUri = "$nuget_packages_uri/api/v2/"
   $tmp_files = Get-ChildItem *.sln 
@@ -17,26 +16,34 @@ properties {
   $Debug = 'Debug'
   $pwd = pwd
   $msbuild = "C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe"
-  $nunit =  "$pwd\packages\NUnit.Runners.2.6.2\tools\nunit-console-x86.exe"
-  $openCover = "$pwd\packages\OpenCover.4.0.804\OpenCover.Console.exe"
-  $reportGenerator = "$pwd\packages\ReportGenerator.1.6.1.0\ReportGenerator.exe"
+  $nunit =  "$pwd\packages\NUnit.Runners\tools\nunit-console-x86.exe"
+  $openCover = "$pwd\packages\OpenCover\OpenCover.Console.exe"
+  $reportGenerator = "$pwd\packages\ReportGenerator\ReportGenerator.exe"
   $TestOutput = "$pwd\BuildOutput"
   $UnitTestOutputFolder = "$TestOutput\UnitTestOutput";
   $TestReport = "";
   $nuspecFile = "SqlToGraphite.nuspec"
 }
 
-#task default -depends Init, Clean, Compile, Test, NugetPackage, Ilmerge, Package,  Report
+task default -depends Init, Compile, Test, Report #, #NugetPackage, Report
 
-task default -depends Init, GetTools, PatchAssemblyInfo #, Clean, Compile, Test, NugetPackage, Report
+task Init -depends GetTools, GetNugetPackages {	
 
-task Init {	
 }
 
 task GetTools {
-	Install-Package -name "NUnit.Runners" -testpath "$pwd\packages\NUnit.Runners\tools\nunit-console-x86.exe"
-    Install-Package -name "OpenCover" -testpath "$pwd\packages\OpenCover\OpenCover.Console.exe"
-    Install-Package -name "ReportGenerator" -testpath "$pwd\packages\ReportGenerator\ReportGenerator.exe"	
+	Install-Package -name "NUnit.Runners" -testpath $nunit
+    Install-Package -name "OpenCover" -testpath $openCover
+    Install-Package -name "ReportGenerator" -testpath $reportGenerator
+}
+
+task GetNugetPackages {
+    $files = Get-ChildItem .\* -recurse | Where-Object {$_.Fullname.Contains("packages.config")}
+    foreach ($file in $files)
+    {
+        write-host "installing nuget packages from " $file.FullName
+        .\nuget.exe install $file.Fullname -Source $SourceUri -ExcludeVersion -OutputDirectory "packages"
+    }
 }
 
 task PatchAssemblyInfo {
@@ -60,7 +67,7 @@ task PatchAssemblyInfo {
 	}
 }
 
-task Test   { 			
+task Test -Depends Compile  { 			
 	$sinkoutput = mkdir $TestOutput -Verbose:$false;  
     $sinkoutput = mkdir $UnitTestOutputFolder -Verbose:$false;  
 	
@@ -78,12 +85,12 @@ task Test   {
 	}
 	write-host $files
 	#write-host " $openCover -target:$nunit -filter:+[SqlToGraphite*]* -register:user -mergebyhash -targetargs:$files /err=err.nunit.txt /noshadow /nologo /config=SqlToGraphite.UnitTests.dll.config"
-	Exec { & $openCover "-target:$nunit" "-filter:-[.*test*]* +[SqlToGraphite*]* " -register:user -mergebyhash "-targetargs:$files /err=err.nunit.txt /noshadow /nologo /config=SqlToGraphite.UnitTests.dll.config" } 
+	Exec { & $openCover "-target:$nunit" "-filter:-[.*test*]* +[*]* " -register:user -mergebyhash "-targetargs:$files /err=err.nunit.txt /noshadow /nologo /config=SqlToGraphite.UnitTests.dll.config" }     
 	Exec { & $reportGenerator "-reports:results.xml" "-targetdir:..\report" "-verbosity:Error" "-reporttypes:Html;HtmlSummary;XmlSummary"}	
 	cd $pwd	
 }
 
-task Compile {  
+task Compile -depends Init, PatchAssemblyInfo, Clean {  
    Exec {  & $msbuild /m:4 /verbosity:quiet /nologo /p:OutDir=""$Build_Artifacts\"" /t:Rebuild /p:Configuration=$Build_Configuration $Build_Solution }   	
 }
 
@@ -97,17 +104,6 @@ task Clean {
 	Remove-Item -force -recurse $TestOutput
   }  
   Exec {  & $msbuild /m:4 /verbosity:quiet /nologo /p:OutDir=""$Build_Artifacts\"" /t:Clean $Build_Solution }  
-}
-
-
-task Ilmerge {
-	$sinkoutput = mkdir $Build_Artifacts;
-  	Exec { tools\ilmerge.exe /closed /t:exe /out:output\sqltographite.host.exe /targetplatform:v4 src\SqlToGraphite.host\output\SqlToGraphite.host.exe src\SqlToGraphite.host\output\Graphite.dll src\SqlToGraphite.host\output\SqlToGraphite.Plugin.Wmi.dll  src\SqlToGraphite.host\output\Topshelf.dll src\SqlToGraphite.host\output\log4net.dll };
-    Exec { tools\ilmerge.exe /closed /t:winexe /out:output\ConfigUi.exe /targetplatform:v4 src\Configurator\output\Configurator.exe src\SqlToGraphite.host\output\SqlToGraphite.host.exe src\SqlToGraphite.host\output\Graphite.dll  src\SqlToGraphite.host\output\SqlToGraphite.Plugin.Wmi.dll src\SqlToGraphite.host\output\SqlToGraphiteInterfaces.dll src\SqlToGraphite.host\output\log4net.dll };    	
-	Copy-Item  $fullPath\app.config.Template output\sqltographite.host.exe.config;
-	Copy-Item  src\ConfigPatcher\output\configpatcher.exe output\configpatcher.exe;	
-	Copy-Item  src\Configurator\output\Configurator.exe.config output\ConfigUi.exe.config;
-	Copy-Item  src\SqlToGraphite.host\output\DefaultConfig.xml output\DefaultConfig.xml;
 }
 
 task NugetPackage {
@@ -140,7 +136,7 @@ task Package {
     Move-item -Force SqlToGraphite-Setup.exe "SqlToGraphite-Setup-$version.exe"	
 }
 
-task Report {
+task Report -Depends Test {
 	write-host "================================================================="	
 	$xmldata = [xml](get-content BuildOutput\UnitTestOutput\testresult.xml)
 	
