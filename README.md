@@ -1,0 +1,4 @@
+buildexample
+============
+
+example build pattern
