@@ -1,11 +1,12 @@
 properties {
+  $name = "ApplicationName"
   $version = '1.0.0.0'
   $nuget_packages_uri = "https://nuget.org"
   $Build_Configuration = 'Release'
   $Company = "Company Name";
   $Description = "Application description";
-  $Product = "Product Name $version";
-  $Title = "Product Title $version";
+  $Product = "$Name $version";
+  $Title = "$Name $version";
     
   
   ## Should not need to change these 
@@ -14,24 +15,32 @@ properties {
   $SourceUri = "$nuget_packages_uri/api/v2/"
   $tmp_files = Get-ChildItem *.sln 
   $Build_Solution =  $tmp_files.Name  
-  $Build_Artifacts = 'output'
-  $fullPath= 'src\SqlToGraphite.host\output'
-  $Debug = 'Debug'
+    
   $pwd = pwd
   $msbuild = "C:\Windows\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe"
   $nunit =  "$pwd\packages\NUnit.Runners\tools\nunit-console-x86.exe"
   $openCover = "$pwd\packages\OpenCover\OpenCover.Console.exe"
   $reportGenerator = "$pwd\packages\ReportGenerator\ReportGenerator.exe"
   $TestOutput = "$pwd\BuildOutput"
-  $UnitTestOutputFolder = "$TestOutput\UnitTestOutput";
-  $TestReport = "";
-  $nuspecFile = "SqlToGraphite.nuspec"
+  $UnitTestOutputFolder = "$TestOutput\UnitTestOutput"
+  $Build_Artifacts = "$TestOutput\BuildArtifacts"    
 }
 
-task default -depends Init, Compile, Test, Report #, #NugetPackage, Report
+task default -depends Init, Compile, Test, Report, Package , pack, push #NugetPackage, Report
 
 task Init -depends GetTools, GetNugetPackages {	
 
+}
+
+task Package {   
+    if ((Test-path -path $Build_Artifacts -pathtype container) -eq $false)
+    {       
+        mkdir $Build_Artifacts
+    }
+    
+    Copy-item src\*\output\* $Build_Artifacts\
+
+    Write-NuspecFile -dataPath $Build_Artifacts -version $version -title $Name -authors $company -owners $company -summary $Product -description $Description -tags $Product -copyright $copyright
 }
 
 task GetTools {
@@ -66,9 +75,18 @@ task PatchAssemblyInfo {
 }
 
 task Test -Depends Compile  { 			
-	$sinkoutput = mkdir $TestOutput -Verbose:$false;  
-    $sinkoutput = mkdir $UnitTestOutputFolder -Verbose:$false;  
 	
+    if ((Test-path -path $TestOutput -pathtype container) -eq $false)
+    {       
+       $sinkoutput = mkdir -path $TestOutput -Verbose:$false; 
+    }
+
+    if ((Test-path -path $UnitTestOutputFolder -pathtype container) -eq $false)
+    {       
+       $sinkoutput = mkdir -path $UnitTestOutputFolder -Verbose:$false;  
+    }
+
+     
 	$unitTestFolders = Get-ChildItem test\* -recurse | Where-Object {$_.PSIsContainer -eq $True} | where-object {$_.Fullname.Contains("output")} | where-object {$_.Fullname.Contains("output\") -eq $false}| select-object FullName
 	foreach($folder in $unitTestFolders)
 	{
@@ -83,7 +101,7 @@ task Test -Depends Compile  {
 	}
 	write-host $files
 	#write-host " $openCover -target:$nunit -filter:+[SqlToGraphite*]* -register:user -mergebyhash -targetargs:$files /err=err.nunit.txt /noshadow /nologo /config=SqlToGraphite.UnitTests.dll.config"
-	Exec { & $openCover "-register:user -target:$nunit" "-filter:-[.*test*]* +[*]* " -register:user -mergebyhash "-targetargs:$files /err=err.nunit.txt /noshadow /nologo /config=SqlToGraphite.UnitTests.dll.config" }     
+	Exec { & $openCover "-target:$nunit" "-filter:-[.*test*]* +[*]* " -register:user -mergebyhash "-targetargs:$files /err=err.nunit.txt /noshadow /nologo /config=SqlToGraphite.UnitTests.dll.config" }     
 	Exec { & $reportGenerator "-reports:results.xml" "-targetdir:..\report" "-verbosity:Error" "-reporttypes:Html;HtmlSummary;XmlSummary"}	
 	cd $pwd	
 }
@@ -129,10 +147,7 @@ task NugetPackage {
     #Move-item -Force SqlToGraphite-Setup.exe "SqlToGraphite-Setup-$version.exe"	
 }
 
-task Package {   
-	Exec { c:\Apps\NSIS\makensis.exe /p4 /v2 sqlToGraphite.nsi }
-    Move-item -Force SqlToGraphite-Setup.exe "SqlToGraphite-Setup-$version.exe"	
-}
+
 
 task Report -Depends Test {
 	write-host "================================================================="	
@@ -150,6 +165,30 @@ task Report -Depends Test {
 	$xmldata1 = [xml](get-content "$TestOutput\report\summary.xml")
 	$xmldata1.SelectNodes("/CoverageReport/Summary")
 }
+
+
+task Pack { 
+    & cpack @(Get-Item *.nuspec)[0]
+}
+
+task Push { 
+    $chocolateySource = "http://192.168.1.99:8081/artifactory/api/nuget/chocolatey-packages"
+    $apiKey = "admin:password"
+    $IsGo = Test-Path -path Env:\GO_PIPELINE_LABEL
+    if ($IsGo -eq $false)
+    {
+        Write-Host "Setting api key"
+        & ".\NuGet.exe" setApiKey "$apiKey"  -Source "$chocolateySource"    
+        $file = @(Get-Item *.nupkg)[0]
+        cpush $file -Source "$chocolateySource"
+    }
+    else
+    {
+        write-host "not pushing, this should be done by go"
+    }   
+}
+
+
 
 task ? -Description "Helper to display task info" {
     Write-Documentation
@@ -213,3 +252,45 @@ function Install-Package {
         .\nuget.exe install $name -Source $SourceUri -ExcludeVersion -OutputDirectory "packages" -Verbosity quiet
     } 
 }
+
+function Write-NuspecFile {
+    param(
+        $version,
+        $title,
+        $authors,
+        $owners,
+        $summary,
+        $description,
+        $tags,
+        $copyright,
+        $dataPath
+        )
+
+  $nuspecFile = "<?xml version=`"1.0`"?>
+<package xmlns=`"http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd`">
+  <metadata>
+    <id>$title</id>
+    <title>$title</title>
+    <version>$version</version>
+    <authors>$authors</authors>
+    <owners>$owners</owners>
+    <summary>$summary</summary>
+    <description>$description</description>
+    <projectUrl>http://www.example.com</projectUrl>
+    <tags>$tags</tags>
+    <copyright>$copyright</copyright>
+    <licenseUrl>http://www.example.com</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <releaseNotes>
+    </releaseNotes>
+  </metadata>
+  <files>
+    <file src=`"chocolatey\scripts\**`" target=`"tools`" />
+    <file src=`"$dataPath\**`" target=`"data`" />    
+  </files>
+</package>
+  "
+  out-file -filePath "project.nuspec" -encoding UTF8 -inputObject $nuspecFile
+
+}
+

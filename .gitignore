@@ -112,3 +112,5 @@ BuildOutput
 *.sln.DotSettings
 *output*
 .sonar
+project.nuspec
+*.nupkg
