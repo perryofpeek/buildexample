@@ -6,6 +6,7 @@ properties {
   $version = '1.0.0.0'
   $nuget_packages_uri = "https://nuget.org"
   $Build_Configuration = 'Release'
+  
   ##
   $SourceUri = "$nuget_packages_uri/api/v2/"
   $tmp_files = Get-ChildItem *.sln 
@@ -212,6 +213,6 @@ function Install-Package {
    if ((Test-Path $testpath) -eq $false)
     {       
         write-output "Installing $name from $SourceUri"
-        .\nuget.exe install $name -Source $SourceUri -ExcludeVersion -OutputDirectory "packages"
+        .\nuget.exe install $name -Source $SourceUri -ExcludeVersion -OutputDirectory "packages" -Verbosity quiet
     } 
 }

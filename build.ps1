@@ -24,8 +24,11 @@ if ((Test-Path ".\packages\psake\tools\psake.cmd") -eq $false)
 
 Import-Module '.\packages\psake\tools\psake.psm1'; 
 Invoke-psake  default.ps1 -t $task; 
-if ($Error -ne '') 
-{     
-    Write-Host "ERROR: $error" -fore RED; 
-    exit $error.Count
+if (($Error -ne '') -and ($error.count -gt 1)) 
+{ 
+        Write-Host "ERROR: $error" -fore RED; 
+        exit $error.Count
 } 
+else {
+  exit 0;
+}  
