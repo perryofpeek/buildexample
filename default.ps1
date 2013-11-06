@@ -45,7 +45,7 @@ task GetNugetPackages {
     foreach ($file in $files)
     {
         write-host "installing nuget packages from " $file.FullName
-        .\nuget.exe install $file.Fullname -Source $SourceUri -ExcludeVersion -OutputDirectory "packages"
+        .\nuget.exe install $file.Fullname -Source $SourceUri -OutputDirectory "packages"
     }
 }
 
