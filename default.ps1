@@ -1,17 +1,19 @@
 properties {
-  $testMessage = 'Executed Test!'
-  $compileMessage = 'Executed Compile!'
-  $cleanMessage = 'Executed Clean!'
-
   $version = '1.0.0.0'
   $nuget_packages_uri = "https://nuget.org"
   $Build_Configuration = 'Release'
+  $Company = "Company Name";
+  $Description = "Application description";
+  $Product = "Product Name $version";
+  $Title = "Product Title $version";
+    
   
-  ##
+  ## Should not need to change these 
+  $year = Get-Date -UFormat "%Y"
+  $Copyright = " (C) Copyright $company $year";
   $SourceUri = "$nuget_packages_uri/api/v2/"
   $tmp_files = Get-ChildItem *.sln 
-  $Build_Solution =  $tmp_files.Name
-  
+  $Build_Solution =  $tmp_files.Name  
   $Build_Artifacts = 'output'
   $fullPath= 'src\SqlToGraphite.host\output'
   $Debug = 'Debug'
@@ -48,11 +50,6 @@ task GetNugetPackages {
 }
 
 task PatchAssemblyInfo {
-	$Company = "Company Name";
-	$Description = "Application description";
-	$Product = "ProductName $version";
-	$Title = "ProductTitle $version";
-	$Copyright = "Company Copyright";	
 
 	$files = Get-ChildItem src\* -recurse | Where-Object {$_.Fullname.Contains("AssemblyInfo.cs")}
 	foreach ($file in $files)

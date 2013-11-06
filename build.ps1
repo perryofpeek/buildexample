@@ -17,7 +17,6 @@ if ((Test-Path ".\packages\psake\tools\psake.cmd") -eq $false)
 	.\nuget.exe install psake -Source $SourceUri -ExcludeVersion -OutputDirectory "packages"
 }
 
-
 # Get the buildscript package here: 
 #.\nuget.exe install ttl-chocolateypackager -Source "$nuget_packages_uri/api/v2/" -ExcludeVersion -OutputDirectory "packages"
 
