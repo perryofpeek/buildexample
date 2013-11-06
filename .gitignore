@@ -111,3 +111,4 @@ nuget.exe
 BuildOutput
 *.sln.DotSettings
 *output*
+.sonar
