@@ -1,6 +1,6 @@
 properties {
   $name = "ApplicationName"
-  $version = '1.0.0.0'
+  $version = '1.0.0'
   $nuget_packages_uri = "https://nuget.org"
   $Build_Configuration = 'Release'
   $Company = "Company Name";
@@ -12,6 +12,12 @@ properties {
     
   
   ## Should not need to change these 
+  if(Is-CIBuild -eq $true)
+  {
+    $buildNumber = $ENV:GO_PIPELINE_LABEL
+    $version = "1.0.0.$buildNumber"
+  }
+
   $year = Get-Date -UFormat "%Y"
   $Copyright = " (C) Copyright $company $year";
   $SourceUri = "$nuget_packages_uri/api/v2/"
@@ -34,11 +40,10 @@ task Init -depends GetTools, GetNugetPackages {
 
 }
 
-
 task Package {   
-    Make-Folder -Name $Build_Artifacts
-    Copy-item src\*\output\* $Build_Artifacts\
-    Write-NuspecFile -dataPath $Build_Artifacts -version $version -title $Name -authors $company -owners $company -summary $Product -description $Description -tags $Product -copyright $copyright
+  Make-Folder -Name $Build_Artifacts
+  Copy-item src\*\output\* $Build_Artifacts\
+  Write-NuspecFile -dataPath $Build_Artifacts -version $version -title $Name -authors $company -owners $company -summary $Product -description $Description -tags $Product -copyright $copyright
 }
 
 task GetTools {
