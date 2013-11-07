@@ -1,22 +1,22 @@
-$package = "ttl-powercli"
+$package = 'Application' 
+$destination = "c:\apps\Application"
+$appPath = "$destination\Application.exe"
+try {
 
-
-try
-{
- 
-  $silentArgs = '/S /v/qn'
-  $validExitCodes = @(0) 
-  $url = $(Split-Path -parent $MyInvocation.MyCommand.Definition) + "\..\data\VMware-PowerCLI-5.1.0-793510.exe"
-  $url64 = $url
-  write-host $url 
-  Start-ChocolateyProcessAsAdmin "$silentArgs" $url -validExitCodes @(0)
-  
-  Uninstall-ChocolateyPackage "$url" "exe" "/S /v/qn /V/x " "$file"
-
-  Write-ChocolateySuccess $package
+    #Stop service?      
+    Start-ChocolateyProcessAsAdmin "uninstall" $appPath -validExitCodes @(0)
+    Delete-Folder -name $destination    
+    Write-ChocolateySuccess $package
 }
-catch
-{
+catch {
   Write-ChocolateyFailure $package "$($_.Exception.Message)"
   throw
+}
+
+function Delete-Folder {
+  param($Name)
+  if ((Test-path -path $Name -pathtype container) -eq $ture)
+  {       
+        rmdir $Name -verbose:$false -force
+  }
 }

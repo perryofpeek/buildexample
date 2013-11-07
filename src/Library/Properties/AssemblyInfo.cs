@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyProductAttribute("ApplicationName 1.0.0.0")]
 [assembly: AssemblyCopyrightAttribute(" (C) Copyright Company Name 2013")]
 [assembly: AssemblyVersionAttribute("1.0.0.0")]
-[assembly: AssemblyInformationalVersionAttribute("1.0.0.0 / f9c88a3")]
+[assembly: AssemblyInformationalVersionAttribute("1.0.0.0 / af08a6f")]
 [assembly: AssemblyFileVersionAttribute("1.0.0.0")]
 [assembly: AssemblyDelaySignAttribute(false)]
 
